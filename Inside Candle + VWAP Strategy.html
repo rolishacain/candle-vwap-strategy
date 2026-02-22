@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<!-- saved from url=(0071)file:///C:/Users/rolis/Downloads/inside-candle-vwap-strategy%20(1).html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inside Candle + VWAP Strategy</title>
+<link href="./Inside Candle + VWAP Strategy_files/css2" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0C0F;
+    --panel: #111318;
+    --border: #1E2229;
+    --green: #00E396;
+    --red: #FF4560;
+    --blue: #008FFB;
+    --gold: #FEB019;
+    --muted: #4A5568;
+    --text: #E2E8F0;
+    --dim: #718096;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* GRID BACKGROUND */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,227,150,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,227,150,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 32px 40px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .header-left .tag {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--green);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tag-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(1.6rem, 4vw, 2.8rem);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  header h1 span { color: var(--green); }
+
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .hstat {
+    text-align: right;
+  }
+
+  .hstat-val {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--gold);
+  }
+
+  .hstat-label {
+    font-size: 10px;
+    color: var(--dim);
+    letter-spacing: 1px;
+  }
+
+  /* NAV TABS */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    overflow-x: auto;
+  }
+
+  .tab {
+    padding: 16px 24px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    color: var(--dim);
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+  /* CONTENT */
+  .content {
+    padding: 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .panel-section { display: none; }
+  .panel-section.active { display: block; }
+
+  /* CANDLE VISUAL */
+  .candle-diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+
+  @media (max-width: 640px) {
+    .candle-diagram { grid-template-columns: 1fr; }
+    header { padding: 24px 20px; }
+    .tabs { padding: 0 20px; }
+    .content { padding: 24px 20px; }
+  }
+
+  .candle-visual {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 20px;
+    height: 200px;
+    position: relative;
+  }
+
+  .candle-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+
+  .wick {
+    width: 2px;
+    background: var(--dim);
+  }
+
+  .candle-body {
+    width: 36px;
+    border-radius: 3px;
+    position: relative;
+  }
+
+  .candle-label {
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--dim);
+    margin-top: 8px;
+    text-align: center;
+  }
+
+  .inside-bracket {
+    position: absolute;
+    right: -28px;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bracket-line {
+    width: 16px;
+    height: 1px;
+    background: var(--gold);
+  }
+
+  .bracket-vert {
+    width: 1px;
+    background: var(--gold);
+    margin-left: 15px;
+  }
+
+  .candle-info h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--gold);
+  }
+
+  .candle-info p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.8;
+    margin-bottom: 12px;
+  }
+
+  .rule-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .rule-item .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  /* FLOW CHART */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-bottom: 32px;
+  }
+
+  .flow-step {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 16px;
+    align-items: stretch;
+    animation: fadeIn 0.4s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .flow-step:nth-child(1) { animation-delay: 0.05s; }
+  .flow-step:nth-child(2) { animation-delay: 0.1s; }
+  .flow-step:nth-child(3) { animation-delay: 0.15s; }
+  .flow-step:nth-child(4) { animation-delay: 0.2s; }
+  .flow-step:nth-child(5) { animation-delay: 0.25s; }
+  .flow-step:nth-child(6) { animation-delay: 0.3s; }
+
+  .flow-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .step-num {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    flex-shrink: 0;
+    border: 1.5px solid;
+  }
+
+  .flow-line {
+    width: 1px;
+    flex: 1;
+    min-height: 20px;
+    margin: 4px 0;
+  }
+
+  .flow-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+    cursor: default;
+  }
+
+  .flow-card:hover { border-color: var(--muted); }
+
+  .flow-card .fc-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+
+  .flow-card h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .flow-card p {
+    font-size: 12px;
+    color: var(--dim);
+    line-height: 1.7;
+  }
+
+  .flow-card .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .chip {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+    font-weight: 500;
+  }
+
+  /* TIMEFRAME GRID */
+  .tf-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .tf-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tf-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+
+  .tf-card.tf-high::before { background: var(--blue); }
+  .tf-card.tf-med::before { background: var(--gold); }
+  .tf-card.tf-low::before { background: var(--green); }
+
+  .tf-card:hover { border-color: var(--muted); transform: translateY(-2px); }
+
+  .tf-label {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    margin-bottom: 4px;
+  }
+
+  .tf-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .tf-role {
+    font-size: 11px;
+    color: var(--dim);
+    line-height: 1.6;
+  }
+
+  .tf-role strong { color: var(--text); }
+
+  /* RULES TABLE */
+  .rules-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 32px;
+  }
+
+  .rules-header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--dim);
+    font-weight: 500;
+  }
+
+  .rules-header .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .rule-row {
+    display: grid;
+    grid-template-columns: 180px 1fr auto;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+
+  .rule-row:last-child { border-bottom: none; }
+  .rule-row:hover { background: rgba(255,255,255,0.02); }
+
+  .rule-row > div {
+    padding: 14px 20px;
+    font-size: 12px;
+    line-height: 1.6;
+    border-right: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+  }
+
+  .rule-row > div:last-child { border-right: none; }
+
+  .rule-name {
+    color: var(--dim);
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* CHECKLIST */
+  .check-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 640px) { .check-grid { grid-template-columns: 1fr; } }
+
+  .check-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .check-block-header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .check-block-header .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  .check-li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+
+  .check-li:last-child { border-bottom: none; }
+  .check-li:hover { background: rgba(255,255,255,0.02); }
+
+  .cb {
+    width: 18px; height: 18px;
+    border: 1.5px solid var(--muted);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    transition: all 0.15s;
+  }
+
+  .check-li.done .cb {
+    background: var(--green);
+    border-color: var(--green);
+    color: #000;
+  }
+
+  .check-li.done .cb-text { text-decoration: line-through; color: var(--muted); }
+
+  /* SCENARIO CARDS */
+  .scenario-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  @media (max-width: 640px) { .scenario-grid { grid-template-columns: 1fr; } }
+
+  .scenario {
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+
+  .scenario-top {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .scenario-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .scenario-top h4 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .scenario-top .stag {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 700;
+    margin-left: auto;
+  }
+
+  .scenario-steps {
+    padding: 16px 24px;
+  }
+
+  .ss {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--dim);
+  }
+
+  .ss:last-child { margin-bottom: 0; }
+
+  .ss-num {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    color: var(--muted);
+    flex-shrink: 0;
+    margin-top: 2px;
+    width: 16px;
+  }
+
+  .ss strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<header>
+  <div class="header-left">
+    <div class="tag"><div class="tag-dot"></div> STRATEGY FRAMEWORK — LIVE</div>
+    <h1>Inside Candle<br><span>+ VWAP</span> System</h1>
+    <div style="margin-top:10px; font-size:11px; color:var(--gold); letter-spacing:1.5px; font-weight:600;">ENTRY: RETEST OF INSIDE CANDLE LEVEL</div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat">
+      <div class="hstat-val">3-TF</div>
+      <div class="hstat-label">CONFIRMATION</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val">RETEST</div>
+      <div class="hstat-label">ENTRY TRIGGER</div>
+    </div>
+    <div class="hstat">
+      <div class="hstat-val">2:1+</div>
+      <div class="hstat-label">MIN R:R</div>
+    </div>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(&#39;overview&#39;, this)">Overview</div>
+  <div class="tab" onclick="switchTab(&#39;entry&#39;, this)">Entry Rules</div>
+  <div class="tab" onclick="switchTab(&#39;timeframes&#39;, this)">Timeframes</div>
+  <div class="tab" onclick="switchTab(&#39;checklist&#39;, this)">Pre-Trade Checklist</div>
+  <div class="tab" onclick="switchTab(&#39;scenarios&#39;, this)">Setups</div>
+  <div class="tab" style="color:var(--gold); font-weight:700;" onclick="switchTab(&#39;retest&#39;, this)">⚡ Retest Guide</div>
+</div>
+
+<div class="content">
+
+  <!-- OVERVIEW -->
+  <div class="panel-section active" id="tab-overview">
+
+    <div class="candle-diagram">
+      <div class="candle-visual">
+        <!-- Mother candle (green) -->
+        <div class="candle-wrap">
+          <div class="wick" style="height:40px; background: #00E396;"></div>
+          <div class="candle-body" style="height: 90px; background: var(--green);"></div>
+          <div class="wick" style="height:20px; background: #00E396;"></div>
+          <div class="candle-label">MOTHER<br>CANDLE</div>
+          <!-- bracket showing high/low -->
+          <div style="position:absolute; right:-32px; top: 40px; height: 90px; display:flex; flex-direction:column; align-items:flex-start;">
+            <div style="display:flex; align-items:center; gap:4px; font-size:8px; color:var(--gold); letter-spacing:1px; white-space:nowrap;">— HIGH</div>
+            <div style="flex:1; width:1px; background: rgba(254,176,25,0.3); margin: 2px 4px;"></div>
+            <div style="display:flex; align-items:center; gap:4px; font-size:8px; color:var(--gold); letter-spacing:1px; white-space:nowrap;">— LOW</div>
+          </div>
+        </div>
+
+        <!-- VWAP line -->
+        <div style="position:absolute; left: 30px; right: 30px; top: 60%; height:1.5px; background: var(--blue); opacity:0.7;"></div>
+        <div style="position:absolute; right: 30px; top: calc(60% - 10px); font-size:9px; color: var(--blue); letter-spacing:1px;">VWAP</div>
+
+        <!-- Inside candle (doji) -->
+        <div class="candle-wrap" style="margin-top: 10px;">
+          <div class="wick" style="height:15px; background:#718096;"></div>
+          <div class="candle-body" style="height: 50px; background: var(--red); opacity: 0.85;"></div>
+          <div class="wick" style="height:10px; background:#718096;"></div>
+          <div class="candle-label">INSIDE<br>CANDLE</div>
+        </div>
+
+        <!-- Breakout arrow -->
+        <div style="display:flex; flex-direction:column; align-items:center; padding-bottom: 44px;">
+          <div style="width:2px; height: 30px; background: rgba(0,227,150,0.3);"></div>
+          <div style="width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 14px solid var(--green);"></div>
+          <div style="font-size: 9px; color: var(--green); letter-spacing:1px; margin-top: 6px; text-align:center; line-height:1.4;">BREAK<br>UP</div>
+        </div>
+      </div>
+
+      <div class="candle-info">
+        <h3>How This Strategy Works</h3>
+        <p>The Inside Candle marks consolidation. Price breaks out of the IC range, then <strong style="color:var(--gold);">retests</strong> the IC high or low — that retest is your entry. VWAP across all timeframes provides the directional bias filter.</p>
+        <div class="rule-item">
+          <div class="dot" style="background: var(--gold);"></div>
+          <span><strong style="color:var(--text);">Inside Candle Level</strong> — the IC high and low become your key S/R levels after the breakout. You mark them, wait for the break, then wait for the retest of those same levels.</span>
+        </div>
+        <div class="rule-item">
+          <div class="dot" style="background: var(--blue);"></div>
+          <span><strong style="color:var(--text);">VWAP Filter</strong> — sets directional bias on all TFs. Price above VWAP = longs only. Below = shorts only. If TFs conflict, skip the trade.</span>
+        </div>
+        <div class="rule-item">
+          <div class="dot" style="background: var(--green);"></div>
+          <span><strong style="color:var(--text);">The Retest Entry</strong> — price breaks the IC level, pulls back to retest it (now flipped S/R), and you enter on confirmation of the hold. Better fill, tighter stop, higher R:R than chasing the initial break.</span>
+        </div>
+      </div>
+        <div class="rule-item">
+          <div class="dot" style="background: var(--green);"></div>
+          <span><strong style="color:var(--text);">The Edge</strong> — you only trade breakouts that are confirmed by VWAP direction, on multiple timeframes agreeing.</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 0;">
+      <div style="font-size: 10px; letter-spacing: 2px; color: var(--green); margin-bottom: 14px; font-weight: 700;">CORE PHILOSOPHY</div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px;">
+        <div>
+          <div style="font-family:&#39;Syne&#39;,sans-serif; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--gold);">01 — WAIT</div>
+          <div style="font-size:12px; color:var(--dim); line-height:1.7;">Don't chase. The inside candle is your signal to prepare, not to act. Patience is the strategy.</div>
+        </div>
+        <div>
+          <div style="font-family:&#39;Syne&#39;,sans-serif; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--gold);">02 — ALIGN</div>
+          <div style="font-size:12px; color:var(--dim); line-height:1.7;">VWAP must agree with your direction across your key timeframes before you place an order.</div>
+        </div>
+        <div>
+          <div style="font-family:&#39;Syne&#39;,sans-serif; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--gold);">03 — WAIT FOR RETEST</div>
+          <div style="font-size:12px; color:var(--dim); line-height:1.7;">After the IC level breaks, <em style="color:var(--gold);">do not enter immediately</em>. Wait for price to pull back and retest the IC high/low. That retest is your entry signal.</div>
+        </div>
+        <div>
+          <div style="font-family:&#39;Syne&#39;,sans-serif; font-size:13px; font-weight:700; margin-bottom:6px; color:var(--gold);">04 — PROTECT</div>
+          <div style="font-size:12px; color:var(--dim); line-height:1.7;">Stop goes behind the inside candle or mother candle. Minimum 2:1 reward-to-risk or don't take it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ENTRY RULES -->
+  <div class="panel-section" id="tab-entry">
+
+    <!-- Retest Entry Banner -->
+    <div style="background:rgba(254,176,25,0.08); border:1px solid rgba(254,176,25,0.25); border-radius:12px; padding:20px 24px; margin-bottom:24px;">
+      <div style="font-size:10px; letter-spacing:2px; color:var(--gold); font-weight:700; margin-bottom:8px;">YOUR ENTRY METHOD</div>
+      <div style="font-family:&#39;Syne&#39;,sans-serif; font-size:18px; font-weight:800; color:var(--text); margin-bottom:8px;">Retest of the Inside Candle Level</div>
+      <div style="font-size:12px; color:var(--dim); line-height:1.8;">
+        You do <strong style="color:var(--text);">not</strong> enter on the initial breakout of the IC. Instead: price breaks the IC high or low → you <em>watch</em> → price pulls back to retest that same level → level holds → <strong style="color:var(--green);">you enter</strong>. This means every entry is at a confirmed flip of support or resistance, not a momentum chase.
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <div style="font-size:11px; padding:5px 12px; border-radius:20px; background:rgba(0,227,150,0.1); border:1px solid rgba(0,227,150,0.3); color:var(--green);">Better fill price</div>
+        <div style="font-size:11px; padding:5px 12px; border-radius:20px; background:rgba(0,227,150,0.1); border:1px solid rgba(0,227,150,0.3); color:var(--green);">Tighter stop loss</div>
+        <div style="font-size:11px; padding:5px 12px; border-radius:20px; background:rgba(0,227,150,0.1); border:1px solid rgba(0,227,150,0.3); color:var(--green);">Higher R:R vs chasing</div>
+        <div style="font-size:11px; padding:5px 12px; border-radius:20px; background:rgba(254,176,25,0.1); border:1px solid rgba(254,176,25,0.3); color:var(--gold);">Confirmation over speed</div>
+      </div>
+    </div>
+
+    <div class="flow">
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--blue); border-color:var(--blue);">1</div>
+          <div class="flow-line" style="background: rgba(0,143,251,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--blue);">Timeframe Scan</div>
+          <h4>Establish Directional Bias via VWAP</h4>
+          <p>Start on Daily, then 4H. Confirm whether price is <strong style="color:var(--green);">above VWAP (bullish)</strong> or <strong style="color:var(--red);">below VWAP (bearish)</strong> on all key timeframes. This locks in your trade direction. You will only take retest entries in this direction — no exceptions.</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--blue); border-color:rgba(0,143,251,0.3);">Daily VWAP</div>
+            <div class="chip" style="color:var(--blue); border-color:rgba(0,143,251,0.3);">4H VWAP</div>
+            <div class="chip" style="color:var(--blue); border-color:rgba(0,143,251,0.3);">1H VWAP</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">All aligned = proceed</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--gold); border-color:var(--gold);">2</div>
+          <div class="flow-line" style="background: rgba(254,176,25,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--gold);">Setup Identification</div>
+          <h4>Mark the Inside Candle High &amp; Low</h4>
+          <p>On 1H or 15M, identify a clean inside candle fully contained within the mother. <strong style="color:var(--text);">Draw horizontal lines</strong> at the IC high and IC low — these are your trigger levels. The IC should be near VWAP, not extended far from it. Multi-bar IC compression (2–3 bars) = stronger coil = more powerful retest.</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">Mark IC High</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">Mark IC Low</div>
+            <div class="chip" style="color:var(--text); border-color:var(--border);">Near VWAP = A+ quality</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--green); border-color:var(--green);">3</div>
+          <div class="flow-line" style="background: rgba(0,227,150,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--green);">Watch for the Breakout</div>
+          <h4>Let Price Break the IC Level First — Don't Enter Yet</h4>
+          <p>Wait for a candle to <strong style="color:var(--text);">close beyond</strong> the IC high (for longs) or IC low (for shorts). This is your signal to go on alert — <strong style="color:var(--red);">not your entry.</strong> The breakout validates the setup. Now your only job is to wait for the retest of that same level.</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--green); border-color:rgba(0,227,150,0.3);">Long: close above IC high</div>
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">Short: close below IC low</div>
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">Do NOT enter here</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--gold); border-color:var(--gold);">4</div>
+          <div class="flow-line" style="background: rgba(254,176,25,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--gold);">The Retest — Your Actual Entry</div>
+          <h4>Enter When Price Returns to the IC Level and Holds</h4>
+          <p>After the breakout, price pulls back to retest the IC high (now support) or IC low (now resistance). You enter <strong style="color:var(--text);">when price touches and shows rejection</strong> from that level. Look for a rejection wick, a small bounce candle, or a VWAP hold on the lower TF to confirm the level is holding before placing your order.</p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+            <div style="background:rgba(0,227,150,0.06); border:1px solid rgba(0,227,150,0.2); border-radius:8px; padding:12px;">
+              <div style="font-size:10px; color:var(--green); font-weight:700; letter-spacing:1px; margin-bottom:6px;">LONG RETEST</div>
+              <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price breaks above IC high → pulls back to IC high → IC high holds as support → enter long on bounce confirmation</div>
+            </div>
+            <div style="background:rgba(255,69,96,0.06); border:1px solid rgba(255,69,96,0.2); border-radius:8px; padding:12px;">
+              <div style="font-size:10px; color:var(--red); font-weight:700; letter-spacing:1px; margin-bottom:6px;">SHORT RETEST</div>
+              <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price breaks below IC low → pulls back to IC low → IC low holds as resistance → enter short on rejection confirmation</div>
+            </div>
+          </div>
+          <div class="chips" style="margin-top:12px;">
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">Rejection wick = best signal</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">VWAP holding = added confluence</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--red); border-color:var(--red);">5</div>
+          <div class="flow-line" style="background: rgba(255,69,96,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--red);">Stop Loss Placement</div>
+          <h4>Stop Goes Below/Above the IC Level You Just Retested</h4>
+          <p>For longs: stop goes <strong style="color:var(--text);">below the IC high</strong> (the level that just held as support) or below the IC low for a wider stop. For shorts: stop goes <strong style="color:var(--text);">above the IC low</strong>. If price returns back through the IC level after you've entered, the retest has failed — get out. Do not give it room to "come back."</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">Long stop: below IC high retest</div>
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">Short stop: above IC low retest</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">Tight stop = high R:R advantage</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--gold); border-color:var(--gold);">6</div>
+          <div class="flow-line" style="background: rgba(254,176,25,0.2);"></div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--gold);">Targets &amp; R:R</div>
+          <h4>Define Targets Before You Enter</h4>
+          <p><strong style="color:var(--text);">Target 1 (1.5R):</strong> Take partial profits — move stop to breakeven on remaining position. <strong style="color:var(--text);">Target 2 (3R+):</strong> Trail the runner via VWAP on lower TF. Minimum 2:1 R:R or the trade doesn't meet your criteria — skip it and wait for the next retest setup.</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">T1 = 1.5R → breakeven stop</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">T2 = 3R+ → trail via VWAP</div>
+            <div class="chip" style="color:var(--gold); border-color:rgba(254,176,25,0.3);">Min 2:1 or skip</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-left">
+          <div class="step-num" style="color:var(--dim); border-color:var(--muted);">7</div>
+        </div>
+        <div class="flow-card">
+          <div class="fc-label" style="color:var(--dim);">Invalidation Rules</div>
+          <h4>When the Retest Setup is Dead</h4>
+          <p><strong style="color:var(--red);">No retest within 3–5 candles:</strong> momentum has moved on — the setup is stale, cancel your order. <strong style="color:var(--red);">Retest level breaks:</strong> price closes back through the IC level from the entry side — exit immediately. <strong style="color:var(--red);">VWAP flips:</strong> if VWAP sentiment changes direction during the retest wait period, the trade is off.</p>
+          <div class="chips">
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">No retest in 3–5 bars = cancel</div>
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">Level breaks = exit</div>
+            <div class="chip" style="color:var(--red); border-color:rgba(255,69,96,0.3);">VWAP flips = trade off</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+    <!-- TIMEFRAMES -->
+  <div class="panel-section" id="tab-timeframes">
+    <p style="font-size:12px; color:var(--dim); margin-bottom:24px; line-height:1.8;">Each timeframe plays a specific role in this strategy. The key is using higher TFs to establish bias, intermediate TFs to find the setup, and lower TFs to refine entries and exits.</p>
+
+    <div class="tf-grid">
+      <div class="tf-card tf-high">
+        <div class="tf-label">HIGHER TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--blue);">Daily</div>
+        <div class="tf-role"><strong>Role: Macro Bias</strong><br>Is the trend up or down? Is price above or below the daily VWAP/anchored VWAP? This sets your only trading direction for the day.</div>
+      </div>
+      <div class="tf-card tf-high">
+        <div class="tf-label">HIGHER TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--blue);">4H</div>
+        <div class="tf-role"><strong>Role: Swing Structure</strong><br>Confirms daily bias. Look for higher highs/lows (bullish) or lower highs/lows (bearish). VWAP must agree with daily.</div>
+      </div>
+      <div class="tf-card tf-med">
+        <div class="tf-label">INTERMEDIATE TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--gold);">1H</div>
+        <div class="tf-role"><strong>Role: Setup Zone</strong><br>This is where you <em>find</em> the inside candle. Look for consolidation near key VWAP levels. Most setups form here.</div>
+      </div>
+      <div class="tf-card tf-med">
+        <div class="tf-label">INTERMEDIATE TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--gold);">15M</div>
+        <div class="tf-role"><strong>Role: Trigger Frame</strong><br>Confirm the inside candle is clean. Watch for VWAP retest or price hovering at VWAP before the breakout candle forms.</div>
+      </div>
+      <div class="tf-card tf-low">
+        <div class="tf-label">LOWER TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--green);">5M</div>
+        <div class="tf-role"><strong>Role: Entry Precision</strong><br>Fine-tune your entry. Look for momentum building before the breakout. VWAP should be below price (longs) or above (shorts).</div>
+      </div>
+      <div class="tf-card tf-low">
+        <div class="tf-label">LOWER TIMEFRAME</div>
+        <div class="tf-name" style="color:var(--green);">1M</div>
+        <div class="tf-role"><strong>Role: Scalp &amp; Exit</strong><br>Optional. Used to trail stops and manage open positions. Watch for VWAP cross on 1M as an early exit warning signal.</div>
+      </div>
+    </div>
+
+    <div class="rules-block">
+      <div class="rules-header"><div class="dot" style="background:var(--gold);"></div> VWAP ALIGNMENT RULES</div>
+      <div class="rule-row">
+        <div class="rule-name">A+ Long Setup</div>
+        <div>Price above VWAP on Daily, 4H, 1H, and 15M. Inside candle near VWAP support on 15M.</div>
+        <div><span style="color:var(--green); font-size:11px; font-weight:700;">FULL GREEN</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">B Setup Long</div>
+        <div>Price above VWAP on Daily + 4H. Mixed on lower TF. Only take if near major VWAP level.</div>
+        <div><span style="color:var(--gold); font-size:11px; font-weight:700;">REDUCED SIZE</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">No Trade</div>
+        <div>VWAP conflicts across timeframes. Daily bullish but 1H/15M bearish, or vice versa.</div>
+        <div><span style="color:var(--red); font-size:11px; font-weight:700;">SKIP IT</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">A+ Short Setup</div>
+        <div>Price below VWAP on Daily, 4H, 1H, and 15M. Inside candle near VWAP resistance on 15M.</div>
+        <div><span style="color:var(--red); font-size:11px; font-weight:700;">FULL SIZE</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="panel-section" id="tab-checklist">
+    <p style="font-size:12px; color:var(--dim); margin-bottom:24px; line-height:1.8;">Run through every item before placing an order. The RETEST block is your actual entry gate — do not skip it. If you can't check every item in the first three blocks, do not enter.</p>
+
+    <div class="check-grid">
+      <div class="check-block">
+        <div class="check-block-header" style="color:var(--blue);">
+          <div class="dot" style="background:var(--blue);"></div> BIAS — Required All ✓
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Daily TF: price is on the correct side of VWAP</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">4H TF: VWAP confirms daily direction</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">1H TF: VWAP aligned with bias</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">No major news event in the next 30 mins</div>
+        </div>
+      </div>
+
+      <div class="check-block">
+        <div class="check-block-header" style="color:var(--gold);">
+          <div class="dot" style="background:var(--gold);"></div> SETUP — Required All ✓
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Clean inside candle identified on 1H or 15M</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">IC fully contained within the mother candle</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">IC high (long) or IC low (short) drawn on chart</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">IC formed near VWAP — not extended far from it</div>
+        </div>
+      </div>
+
+      <div class="check-block" style="border-top:2px solid var(--gold);">
+        <div class="check-block-header" style="color:var(--gold); background:rgba(254,176,25,0.06);">
+          <div class="dot" style="background:var(--gold);"></div> RETEST ENTRY — Required All ✓
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Price has already broken out of the IC level (breakout confirmed)</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">I am NOT entering on the initial breakout candle</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Price has pulled back to retest the IC level</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Level is showing rejection (wick, bounce candle, or VWAP hold)</div>
+        </div>
+      </div>
+
+      <div class="check-block">
+        <div class="check-block-header" style="color:var(--green);">
+          <div class="dot" style="background:var(--green);"></div> RISK — Required All ✓
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Stop placed just below/above the IC level being retested</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Risk is ≤1–2% of account on this trade</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Target 1 (1.5R) and Target 2 (3R+) are pre-marked</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">Reward-to-risk is at least 2:1 or I am skipping this trade</div>
+        </div>
+      </div>
+
+      <div class="check-block">
+        <div class="check-block-header" style="color:var(--dim);">
+          <div class="dot" style="background:var(--dim);"></div> MINDSET — Nice to Have
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">I did not chase the initial breakout — I waited for the retest</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">I am not entering out of FOMO because I missed the first move</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">I will exit immediately if the IC level breaks on the retest</div>
+        </div>
+        <div class="check-li" onclick="toggleCheck(this)">
+          <div class="cb">✓</div>
+          <div class="cb-text">I'm OK with this trade losing — it's one setup in a series</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+    <!-- SCENARIOS / SETUPS -->
+  <div class="panel-section" id="tab-scenarios">
+    <p style="font-size:12px; color:var(--dim); margin-bottom:24px; line-height:1.8;">All 4 setups below use your retest entry method. The sequence is always: <strong style="color:var(--text);">IC forms → breakout → retest of IC level → hold confirmed → enter.</strong> Learn each pattern on sight.</p>
+
+    <div class="scenario-grid">
+
+      <div class="scenario">
+        <div class="scenario-top">
+          <div class="scenario-icon" style="background:rgba(0,227,150,0.1);">🚀</div>
+          <div>
+            <div style="font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:2px;">SETUP 01 — LONG</div>
+            <h4>VWAP Bounce + IC Retest Long</h4>
+          </div>
+          <div class="stag" style="background:rgba(0,227,150,0.15); color:var(--green);">A+</div>
+        </div>
+        <div class="scenario-steps">
+          <div class="ss"><div class="ss-num">01</div><div>Price pulls back to VWAP on 1H after uptrend — IC forms at VWAP</div></div>
+          <div class="ss"><div class="ss-num">02</div><div>Daily + 4H + 1H all bullish above VWAP — bias locked long</div></div>
+          <div class="ss"><div class="ss-num">03</div><div><strong>Mark the IC high.</strong> Price breaks above it — go on alert</div></div>
+          <div class="ss"><div class="ss-num">04</div><div>Price pulls back and <strong>retests the IC high</strong> — watch for rejection wick</div></div>
+          <div class="ss"><div class="ss-num">05</div><div>IC high holds as support → <strong>enter long</strong> on confirmation candle</div></div>
+          <div class="ss"><div class="ss-num">06</div><div>Stop: just below IC high. Target: 3R or prior swing high</div></div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-top">
+          <div class="scenario-icon" style="background:rgba(255,69,96,0.1);">📉</div>
+          <div>
+            <div style="font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:2px;">SETUP 02 — SHORT</div>
+            <h4>VWAP Rejection + IC Retest Short</h4>
+          </div>
+          <div class="stag" style="background:rgba(255,69,96,0.15); color:var(--red);">A+</div>
+        </div>
+        <div class="scenario-steps">
+          <div class="ss"><div class="ss-num">01</div><div>Price rallies to VWAP (resistance) in downtrend — IC forms under VWAP</div></div>
+          <div class="ss"><div class="ss-num">02</div><div>Daily + 4H + 1H all bearish below VWAP — bias locked short</div></div>
+          <div class="ss"><div class="ss-num">03</div><div><strong>Mark the IC low.</strong> Price breaks below it — go on alert</div></div>
+          <div class="ss"><div class="ss-num">04</div><div>Price pulls back and <strong>retests the IC low</strong> — watch for rejection from underside</div></div>
+          <div class="ss"><div class="ss-num">05</div><div>IC low holds as resistance → <strong>enter short</strong> on confirmation candle</div></div>
+          <div class="ss"><div class="ss-num">06</div><div>Stop: just above IC low. Target: 3R or prior swing low</div></div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-top">
+          <div class="scenario-icon" style="background:rgba(254,176,25,0.1);">⚡</div>
+          <div>
+            <div style="font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:2px;">SETUP 03 — COMPRESSION</div>
+            <h4>Multi-IC Compression Retest</h4>
+          </div>
+          <div class="stag" style="background:rgba(254,176,25,0.15); color:var(--gold);">A+</div>
+        </div>
+        <div class="scenario-steps">
+          <div class="ss"><div class="ss-num">01</div><div>2–3 consecutive inside candles form — tight coil building energy</div></div>
+          <div class="ss"><div class="ss-num">02</div><div>Mark the <strong>outermost IC high and low</strong> of the compression zone</div></div>
+          <div class="ss"><div class="ss-num">03</div><div>Price breaks out of the compression zone in VWAP-aligned direction</div></div>
+          <div class="ss"><div class="ss-num">04</div><div>Price retests the top (or bottom) of the compression zone</div></div>
+          <div class="ss"><div class="ss-num">05</div><div>Compression level holds → <strong>enter in breakout direction</strong></div></div>
+          <div class="ss"><div class="ss-num">06</div><div>Breakout from multi-IC is often sharp — use wider target (4–5R)</div></div>
+        </div>
+      </div>
+
+      <div class="scenario">
+        <div class="scenario-top">
+          <div class="scenario-icon" style="background:rgba(0,143,251,0.1);">🔄</div>
+          <div>
+            <div style="font-size:9px; color:var(--dim); letter-spacing:1px; margin-bottom:2px;">SETUP 04 — CONTINUATION</div>
+            <h4>VWAP Reclaim + IC Retest Continuation</h4>
+          </div>
+          <div class="stag" style="background:rgba(0,143,251,0.15); color:var(--blue);">B</div>
+        </div>
+        <div class="scenario-steps">
+          <div class="ss"><div class="ss-num">01</div><div>Price dips below VWAP then reclaims it — IC forms just above reclaimed VWAP</div></div>
+          <div class="ss"><div class="ss-num">02</div><div>Daily bias still bullish — reclaim + IC = continuation setup</div></div>
+          <div class="ss"><div class="ss-num">03</div><div><strong>Mark IC high.</strong> Price breaks above it — go on alert</div></div>
+          <div class="ss"><div class="ss-num">04</div><div>Price retests the IC high — VWAP should be acting as floor below</div></div>
+          <div class="ss"><div class="ss-num">05</div><div>IC high holds + VWAP holds → <strong>enter long</strong> with reduced size (B-grade)</div></div>
+          <div class="ss"><div class="ss-num">06</div><div>Stop: below IC high or below VWAP depending on spacing</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Retest quality guide -->
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-top:8px;">
+      <div style="padding:16px 24px; border-bottom:1px solid var(--border); font-size:10px; letter-spacing:2px; color:var(--dim); font-weight:500; display:flex; align-items:center; gap:8px;">
+        <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);"></div>
+        RETEST QUALITY GUIDE — WHAT TO LOOK FOR AT THE LEVEL
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0;">
+        <div style="padding:16px 20px; border-right:1px solid var(--border);">
+          <div style="font-size:10px; color:var(--green); font-weight:700; letter-spacing:1px; margin-bottom:8px;">✅ STRONG RETEST</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Rejection wick touches IC level then closes away · Quick 1–2 candle retest, no lingering · VWAP holding in your favor on LTF · High volume on the breakout candle, lower volume on the retest</div>
+        </div>
+        <div style="padding:16px 20px; border-right:1px solid var(--border);">
+          <div style="font-size:10px; color:var(--gold); font-weight:700; letter-spacing:1px; margin-bottom:8px;">⚠️ WEAK RETEST</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price grinds along IC level for many candles · Multiple closes above and below the level · VWAP is conflicting on LTF · Retest takes more than 5–6 candles to resolve</div>
+        </div>
+        <div style="padding:16px 20px;">
+          <div style="font-size:10px; color:var(--red); font-weight:700; letter-spacing:1px; margin-bottom:8px;">❌ FAILED RETEST</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price closes back through the IC level on the retest side · Setup is invalidated — do not enter or exit immediately if already in · Wait for a fresh IC to form before trading again</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RETEST GUIDE -->
+  <div class="panel-section" id="tab-retest">
+
+    <div style="background:rgba(254,176,25,0.07); border:1px solid rgba(254,176,25,0.3); border-radius:12px; padding:24px; margin-bottom:24px;">
+      <div style="font-size:10px; letter-spacing:2px; color:var(--gold); font-weight:700; margin-bottom:10px;">WHY THE RETEST ENTRY WINS</div>
+      <div style="font-size:13px; color:var(--text); line-height:1.8; font-weight:500;">
+        Entering on the <em>retest</em> of the IC level instead of the initial breakout gives you three structural advantages:
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-top:16px;">
+        <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:16px;">
+          <div style="font-size:11px; color:var(--green); font-weight:700; margin-bottom:8px;">01 — BETTER PRICE</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">You enter closer to the actual S/R level, not in the middle of a momentum burst. This alone improves your average R:R across all trades.</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:16px;">
+          <div style="font-size:11px; color:var(--green); font-weight:700; margin-bottom:8px;">02 — TIGHTER STOP</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Your stop goes just below/above the IC level. Because you're entering at the level itself, the stop distance is minimal — often 2–5 ticks depending on the asset.</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.2); border-radius:8px; padding:16px;">
+          <div style="font-size:11px; color:var(--green); font-weight:700; margin-bottom:8px;">03 — CONFIRMATION</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">The level has been tested and is holding. You're not guessing — you're reacting to price proving the level matters. The market tells you the trade is on.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Visual sequence diagram -->
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:24px;">
+      <div style="font-size:10px; letter-spacing:2px; color:var(--dim); font-weight:500; margin-bottom:20px;">THE EXACT SEQUENCE — LONG EXAMPLE</div>
+      <div style="display:flex; align-items:flex-start; gap:0; overflow-x:auto;">
+
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:140px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(0,143,251,0.15); border:1.5px solid var(--blue); display:flex; align-items:center; justify-content:center; font-family:&#39;Syne&#39;,sans-serif; font-weight:800; font-size:16px; color:var(--blue);">1</div>
+          <div style="width:1px; height:20px; background:rgba(0,143,251,0.2); margin:6px 0;"></div>
+          <div style="text-align:center; font-size:11px; color:var(--dim); line-height:1.6; padding:0 8px;">IC forms on 1H/15M.<br><span style="color:var(--text);">Mark the IC high.</span></div>
+        </div>
+
+        <div style="flex:1; height:2px; background:rgba(255,255,255,0.06); margin-top:24px;"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:140px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(254,176,25,0.15); border:1.5px solid var(--gold); display:flex; align-items:center; justify-content:center; font-family:&#39;Syne&#39;,sans-serif; font-weight:800; font-size:16px; color:var(--gold);">2</div>
+          <div style="width:1px; height:20px; background:rgba(254,176,25,0.2); margin:6px 0;"></div>
+          <div style="text-align:center; font-size:11px; color:var(--dim); line-height:1.6; padding:0 8px;">Price <span style="color:var(--text);">closes above</span> IC high.<br>Go on alert. Do NOT enter.</div>
+        </div>
+
+        <div style="flex:1; height:2px; background:rgba(255,255,255,0.06); margin-top:24px;"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:140px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(255,69,96,0.1); border:1.5px solid var(--red); display:flex; align-items:center; justify-content:center; font-family:&#39;Syne&#39;,sans-serif; font-weight:800; font-size:16px; color:var(--red);">3</div>
+          <div style="width:1px; height:20px; background:rgba(255,69,96,0.2); margin:6px 0;"></div>
+          <div style="text-align:center; font-size:11px; color:var(--dim); line-height:1.6; padding:0 8px;">Price <span style="color:var(--text);">pulls back</span> to IC high.<br>Watch — don't act yet.</div>
+        </div>
+
+        <div style="flex:1; height:2px; background:rgba(255,255,255,0.06); margin-top:24px;"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:140px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(0,227,150,0.15); border:1.5px solid var(--green); display:flex; align-items:center; justify-content:center; font-family:&#39;Syne&#39;,sans-serif; font-weight:800; font-size:16px; color:var(--green);">4</div>
+          <div style="width:1px; height:20px; background:rgba(0,227,150,0.2); margin:6px 0;"></div>
+          <div style="text-align:center; font-size:11px; color:var(--dim); line-height:1.6; padding:0 8px;">IC high <span style="color:var(--green);">holds as support.</span><br>Rejection wick / bounce.</div>
+        </div>
+
+        <div style="flex:1; height:2px; background:rgba(255,255,255,0.06); margin-top:24px;"></div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:140px;">
+          <div style="width:48px; height:48px; border-radius:50%; background:rgba(0,227,150,0.25); border:2px solid var(--green); display:flex; align-items:center; justify-content:center; font-size:20px;">✅</div>
+          <div style="width:1px; height:20px; background:rgba(0,227,150,0.2); margin:6px 0;"></div>
+          <div style="text-align:center; font-size:11px; color:var(--green); line-height:1.6; padding:0 8px; font-weight:600;">ENTER LONG<br>Stop below IC high.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- When NOT to take the retest -->
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:24px;">
+      <div style="padding:16px 24px; border-bottom:1px solid var(--border); font-size:10px; letter-spacing:2px; color:var(--red); font-weight:700;">WHEN TO SKIP THE RETEST — INVALIDATION SCENARIOS</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+        <div style="padding:18px 22px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:6px;">Retest takes too long</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">If price doesn't retest within 3–5 candles on the setup timeframe, the momentum has already moved on. Cancel your alert. Don't chase a stale retest.</div>
+        </div>
+        <div style="padding:18px 22px; border-bottom:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:6px;">Level completely blown through</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price comes back, closes back below the IC high (for longs) — the level isn't holding. This is a failed retest. Do not enter. Wait for a new IC to form.</div>
+        </div>
+        <div style="padding:18px 22px; border-right:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:6px;">VWAP flips during the wait</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">If VWAP sentiment turns against your bias while you're waiting for the retest, the setup context has changed. Skip it — the odds have shifted.</div>
+        </div>
+        <div style="padding:18px 22px;">
+          <div style="font-size:11px; color:var(--red); font-weight:700; margin-bottom:6px;">Retest with no rejection signal</div>
+          <div style="font-size:11px; color:var(--dim); line-height:1.7;">Price drifts back to the level, sits there, no rejection wick, no clear bounce candle. Weak retest = weak odds. Only enter when the level shows it's defending itself.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Retest timing by TF -->
+    <div style="background:var(--panel); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+      <div style="padding:16px 24px; border-bottom:1px solid var(--border); font-size:10px; letter-spacing:2px; color:var(--dim); font-weight:500;">RETEST TIMING EXPECTATIONS BY TIMEFRAME</div>
+      <div class="rule-row">
+        <div class="rule-name">1H Setup</div>
+        <div>Retest typically arrives within 1–3 candles (1–3 hours). Anything beyond 5 candles is stale.</div>
+        <div><span style="color:var(--gold); font-size:11px; font-weight:700;">1–3 CANDLES</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">15M Setup</div>
+        <div>Retest should come within 2–5 candles (30–75 mins). Fast markets may retest within 1 candle.</div>
+        <div><span style="color:var(--gold); font-size:11px; font-weight:700;">2–5 CANDLES</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">5M Setup</div>
+        <div>Very fast. Retest within 1–4 candles (5–20 mins). If it doesn't come quickly, move on.</div>
+        <div><span style="color:var(--gold); font-size:11px; font-weight:700;">1–4 CANDLES</span></div>
+      </div>
+      <div class="rule-row">
+        <div class="rule-name">Best confirmation</div>
+        <div>A small wick touching the IC level followed by a strong close away from it. That's the signal.</div>
+        <div><span style="color:var(--green); font-size:11px; font-weight:700;">WICK + CLOSE</span></div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /content -->
+<!-- /wrapper -->
+
+<script>
+  function switchTab(id, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + id).classList.add('active');
+  }
+
+  function toggleCheck(el) {
+    el.classList.toggle('done');
+  }
+</script>
+
+
+
+</body></html>
